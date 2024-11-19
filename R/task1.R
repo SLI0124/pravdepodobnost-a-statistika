@@ -149,3 +149,74 @@ print(summary_nvidia_3070)
 # calculate summary statistics amd 7700
 summary_amd_7700 = summarize_gpu("amd_7700")
 print(summary_amd_7700)
+
+# 4. data visualization ####
+# 4.1.
+# create boxplot with outliers for Nvidia 3070 and AMD 7700
+filtered_data <- all_data %>% filter(gpu %in% c("nvidia_3070", "amd_7700"))
+png("output/boxplot_with_outliers.png", width = 800, height = 600)
+par(mfrow = c(1, 1))
+boxplot(filtered_data$performance_increase ~ filtered_data$gpu,
+        names = c("Nvidia 3070", "AMD 7700"),
+        main = "Krabicový graf s odlehlými pozorováními",
+        xlab = "Grafické karty",
+        ylab = "FPS",
+        col="gray",
+        border="black")
+dev.off()
+        
+# 4.2.
+# create boxplot without outliers for Nvidia 3070 and AMD 7700
+filtered_data <- all_data %>% filter(gpu %in% c("nvidia_3070", "amd_7700"), outlier == FALSE)
+png("output/boxplot_without_outliers.png", width = 800, height = 600)
+par(mfrow = c(1, 1))
+boxplot(filtered_data$performance_increase ~ filtered_data$gpu,
+        names = c("Nvidia 3070", "AMD 7700"),
+        main = "Krabicový graf bez odlehlých pozorování",
+        xlab = "Grafické karty",
+        ylab = "FPS",
+        col="gray",
+        border="black")
+dev.off()
+
+# 4.3. 
+# combine QQ plot and histogram for Nvidia 3070
+filtered_data <- all_data %>% filter(gpu == "nvidia_3070", outlier == FALSE)
+png("output/qqplot_histogram_nvidia_3070.png", width = 1200, height = 600)
+par(mfrow = c(1, 2))
+# QQ plot
+qqnorm(filtered_data$performance_increase,
+       main = "QQ plot pro Nvidia 3070",
+       xlab = "Norm. teoretické kvantily",
+       ylab = "Výběrové kvantily")
+qqline(filtered_data$performance_increase, col = "black")
+# histogram
+hist(filtered_data$performance_increase,
+     main = "Histogram pro Nvidia 3070",
+     xlab = "FPS",
+     ylab = "Počet",
+     col = "gray",
+     border = "black")
+par(mfrow = c(1, 1))
+dev.off()
+
+# 4.4.
+# combine QQ plot and histogram for AMD 7700
+filtered_data <- all_data %>% filter(gpu == "amd_7700", outlier == FALSE)
+png("output/qqplot_histogram_amd_7700.png", width = 1200, height = 600)
+par(mfrow = c(1, 2))
+# QQ plot
+qqnorm(filtered_data$performance_increase,
+       main = "QQ plot pro AMD 7700",
+       xlab = "Norm. teoretické kvantily",
+       ylab = "Výběrové kvantily")
+qqline(filtered_data$performance_increase, col = "black")
+# histogram
+hist(filtered_data$performance_increase,
+     main = "Histogram pro AMD 7700",
+     xlab = "FPS",
+     ylab = "Počet",
+     col = "gray",
+     border = "black")
+par(mfrow = c(1, 1))
+dev.off()
