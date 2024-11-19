@@ -220,3 +220,24 @@ hist(filtered_data$performance_increase,
      border = "black")
 par(mfrow = c(1, 1))
 dev.off()
+
+# 5. calculate sigma interval ####
+calculate_sigma_interval = function(data, column_name, sigma) {
+  mean_value = mean(data[[column_name]], na.rm = TRUE)
+  sd_value = sd(data[[column_name]], na.rm = TRUE)
+  
+  lower_bound = mean_value - sigma * sd_value
+  upper_bound = mean_value + sigma * sd_value
+  
+  return(c(lower_bound, upper_bound))
+}
+
+# calculate 2-sigma interval for Nvidia 3070
+nvidia_3070 = all_data %>% filter(gpu == "nvidia_3070", outlier == FALSE)
+sigma_interval_2_3070 = calculate_sigma_interval(nvidia_3070, "performance_increase", 2)
+
+# calculate 2-sigma interval for AMD 7700
+amd_7700 = all_data %>% filter(gpu == "amd_7700", outlier == FALSE)
+sigma_interval_2_7700 = calculate_sigma_interval(amd_7700, "performance_increase", 2)
+
+
