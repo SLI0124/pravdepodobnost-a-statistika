@@ -1,6 +1,7 @@
 # 1. import libraries ####
 # install packages
 install.packages("readxl")  # reading excel files
+install.packages("openxlsx")# writing excel files
 install.packages("moments") # calculating skewness and kurtosis
 install.packages("dplyr")   # more efficient data manipulation
 install.packages("tidyr")   # more efficient data manipulation (pivot_longer)
@@ -11,6 +12,7 @@ install.packages("forcats") # contains fct_infreq() function, which sorts factor
 
 # activate packages
 library(readxl)
+library(openxlsx)
 library(moments)
 library(dplyr)
 library(tidyr)
@@ -25,95 +27,125 @@ options(OutDec = ",",
         pillar.sigfig = 7)
 
 
-# 2. data gathering and cleaning ####
+# 2. data gathering, cleaning and preprocessing ####
 # we have 4 GPUs and their performance before and after patch 
 
+input_file = "data/ukol_191.xlsx"
+
 # Nvidia RTX 2080 Ti
-nvidia_2080 = read_excel("data/ukol_191.xlsx",
-                         sheet = "Nvidia RTX 2080 Ti",
-                         skip = 1)
+nvidia_2080 = read_excel(input_file,
+                         sheet = "Nvidia RTX 2080 Ti")
 
 # Nvidia RTX 3070 Ti
-nvidia_3070 = read_excel("data/ukol_191.xlsx",
-                         sheet = "Nvidia RTX 3070 Ti",
-                         skip = 1)
+nvidia_3070 = read_excel(input_file,
+                         sheet = "Nvidia RTX 3070 Ti")
 
 # AMD Radeon RX 6800 XT 
-amd_6800 = read_excel("data/ukol_191.xlsx",
-                      sheet = "AMD Radeon RX 6800 XT",
-                      skip = 1)
+amd_6800 = read_excel(input_file,
+                      sheet = "AMD Radeon RX 6800 XT")
 
 # AMD Radeon RX 7700 XT
-amd_7700 = read_excel("data/ukol_191.xlsx",
-                      sheet = "AMD Radeon RX 7700 XT",
-                      skip = 1)
+amd_7700 = read_excel(input_file,
+                      sheet = "AMD Radeon RX 7700 XT")
 
-# give each GPU columns id, average_fps_release, average_fps_patch
+# add column names: id, average_fps_release, average_fps_patch
 new_column_names = c("id", "average_fps_release", "average_fps_patch")
-nvidia_2080 = nvidia_2080 %>% rename_with(~new_column_names)
-nvidia_3070 = nvidia_3070 %>% rename_with(~new_column_names)
-amd_6800 = amd_6800 %>% rename_with(~new_column_names)
-amd_7700 = amd_7700 %>% rename_with(~new_column_names)
+nvidia_2080 = setNames(nvidia_2080, new_column_names)
+nvidia_3070 = setNames(nvidia_3070, new_column_names)
+amd_6800 = setNames(amd_6800, new_column_names)
+amd_7700 = setNames(amd_7700, new_column_names)
 
-# change data structure to data.frame for potential future mismanipulation
-nvidia_2080 = as.data.frame(nvidia_2080)
-nvidia_3070 = as.data.frame(nvidia_3070)
-amd_6800 = as.data.frame(amd_6800)
-amd_7700 = as.data.frame(amd_7700)
+# add column with GPU name 
+nvidia_2080$gpu = "nvidia_2080"
+nvidia_3070$gpu = "nvidia_3070"
+amd_6800$gpu = "amd_6800"
+amd_7700$gpu = "amd_7700"
+
+# combine all data
+all_data = rbind(nvidia_2080, nvidia_3070, amd_6800, amd_7700)
+
+# convert to data frame format for future mismanagement, just to be sure
+all_data = as.data.frame(all_data)
+
+# drop the id column
+all_data = all_data %>% select(-id)
+
+# delete old data frames, just for cleaner environment table
+rm(nvidia_2080, nvidia_3070, amd_6800, amd_7700, new_column_names)
 
 # 3. data analysis ####
-# calculate number of rows
-# calculate minimum, lower_quartile, median, average, upper_quartile, maximum
-# calculate standard deviation, coefficient of variation (%)
-# calculate skewness, kurtosis
+# 3.1.
+# add a new column preformance_increase
+all_data$performance_increase = all_data$average_fps_patch - all_data$average_fps_release
 
-# function to all the statistics
-calculate_statistics = function(data, gpu_name, patch = FALSE) {
-  if (patch) { # if patch is TRUE, use average_fps_patch column
-    data = data$average_fps_patch
-  } else { # if patch is FALSE, use average_fps_release column
-    data = data$average_fps_release
-  }
+# 3.2.
+# create new column, that will tell if the row is an outlier or not
+all_data$outlier = FALSE
+
+# Identify outliers using the IQR method
+all_data = all_data %>%
+  group_by(gpu) %>%
+  mutate(
+    Q1 = quantile(performance_increase, 0.25),
+    Q3 = quantile(performance_increase, 0.75),
+    IQR = Q3 - Q1,
+    lower_bound = Q1 - 1.5 * IQR,
+    upper_bound = Q3 + 1.5 * IQR,
+    outlier = performance_increase < lower_bound | performance_increase > upper_bound
+  ) %>%
+  select(-Q1, -Q3, -IQR, -lower_bound, -upper_bound) # Clean up intermediate columns
+
+# 3.3.
+# for each gpu calculate: with outliers and without outliers:
+# number of rows, minimum value, lower quartile, median value, average value, 
+# upper quartile, maximum value, standard deviation, variance coefficient (%), 
+# skewness, kurtosis, lowest bound of quartile, highest bound of quartile 
+summarize_gpu = function(gpu_name) {
+  gpu_data = all_data %>% filter(gpu == gpu_name)
   
-  number_of_rows = length(data)
-  minimum = min(data, na.rm = TRUE)
-  lower_quartile = quantile(data, 0.25, na.rm = TRUE)
-  median = median(data, na.rm = TRUE)
-  average = mean(data, na.rm = TRUE)
-  upper_quartile = quantile(data, 0.75, na.rm = TRUE)
-  maximum = max(data, na.rm = TRUE)
-  standard_deviation = sd(data, na.rm = TRUE)
-  coefficient_of_variation = standard_deviation / average * 100
-  skewness = (moments::skewness(data, na.rm = TRUE))
-  kurtosis = (moments::kurtosis(data, na.rm = TRUE) - 3) # subtract 3 to get excess kurtosis
-
-  # print all statistics
-  cat("GPU: ", gpu_name, "\n")
-  cat("Number of rows: ", number_of_rows, "\n")
-  cat("Minimum: ", minimum, "\n")
-  cat("Lower quartile: ", lower_quartile, "\n")
-  cat("Median: ", median, "\n")
-  cat("Average: ", average, "\n")
-  cat("Upper quartile: ", upper_quartile, "\n")
-  cat("Maximum: ", maximum, "\n")
-  cat("Standard deviation: ", standard_deviation, "\n")
-  cat("Coefficient of variation: ", coefficient_of_variation, "%\n")
-  cat("Skewness: ", skewness, "\n")
-  cat("Kurtosis: ", kurtosis, "\n\n")
+  # with outliers
+  with_outliers = gpu_data %>%
+    summarize(
+      rozsah = n(),
+      minimum = min(performance_increase),
+      dolni_kvartil = quantile(performance_increase, 0.25),
+      median = median(performance_increase),
+      prumer = mean(performance_increase),
+      horni_kvartil = quantile(performance_increase, 0.75),
+      maximum = max(performance_increase),
+      smerodatna_odchylka = sd(performance_increase),
+      variacni_koeficient_procento = smerodatna_odchylka / prumer * 100,
+      sikmost = skewness(performance_increase),
+      spicatost = kurtosis(performance_increase),
+      dolni_mez = dolni_kvartil - 1.5 * IQR(performance_increase),
+      horni_mez = horni_kvartil + 1.5 * IQR(performance_increase)
+    )
+  
+  # without outliers
+  without_outliers = gpu_data %>% filter(outlier == FALSE) %>%
+    summarize(
+      rozsah = n(),
+      minimum = min(performance_increase),
+      dolni_kvartil = quantile(performance_increase, 0.25),
+      median = median(performance_increase),
+      prumer = mean(performance_increase),
+      horni_kvartil = quantile(performance_increase, 0.75),
+      maximum = max(performance_increase),
+      smerodatna_odchylka = sd(performance_increase),
+      variacni_koeficient_procento = smerodatna_odchylka / prumer * 100,
+      sikmost = skewness(performance_increase),
+      spicatost = kurtosis(performance_increase),
+      dolni_mez = dolni_kvartil - 1.5 * IQR(performance_increase),
+      horni_mez = horni_kvartil + 1.5 * IQR(performance_increase)
+    )
+  
+  return(rbind(with_outliers, without_outliers))
 }
 
-# calculate statistics for Nvidia 3070 and AMD 7700 after release
+# calculate summary statistics nvidia 3070
+summary_nvidia_3070 = summarize_gpu("nvidia_3070")
+print(summary_nvidia_3070)
 
-# Nvidia 3070 after release
-calculate_statistics(nvidia_3070, "Nvidia RTX 3070 Ti", patch = FALSE)
-
-# calculate statistics for AMD 7700 after release
-calculate_statistics(amd_7700, "AMD Radeon RX 7700 XT", patch = FALSE)
-
-# calculate statistics for Nvidia 3070 and AMD 7700 after patch
-
-# Nvidia 3070 after patch
-calculate_statistics(nvidia_3070, "Nvidia RTX 3070 Ti", patch = TRUE)
-
-# calculate statistics for AMD 7700 after patch
-calculate_statistics(amd_7700, "AMD Radeon RX 7700 XT", patch = TRUE)
+# calculate summary statistics amd 7700
+summary_amd_7700 = summarize_gpu("amd_7700")
+print(summary_amd_7700)
