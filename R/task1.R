@@ -68,6 +68,7 @@ all_data = rbind(nvidia_2080, nvidia_3070, amd_6800, amd_7700)
 all_data = as.data.frame(all_data)
 
 
+
 # 3. data analysis ####
 # 3.1.
 # add a new column preformance_increase
@@ -236,27 +237,32 @@ ggarrange(histogram_plot, qqplot_plot,
 # save the plot
 ggsave("output/histogram_qqplot_no_outliers_task1.png", plot = combined_plot, width = 10, height = 6, units = "in", dpi = 300)
 
-# 5. calculate sigma interval ####
-
-calculate_sigma_interval = function(data, column_name, sigma) {
-  prumer = mean(data[[column_name]])
-  smerodatna_odchylka = sd(data[[column_name]])
-  rozptyl = smerodatna_odchylka^2
+# 5. calculate Cebyshev's inequality ####
+calculate_cebyshev = function(data, k) {
+  # Calculate the mean and standard deviation
+  mean_value = mean(data)
+  sd_value = sd(data)
   
-  vrchni_hranice = prumer + sigma * smerodatna_odchylka
-  dolni_hranice = prumer - sigma * smerodatna_odchylka
+  # Calculate the lower and upper bounds
+  lower_bound = mean_value - k * sd_value
+  upper_bound = mean_value + k * sd_value
   
-  return(c(dolni_hranice, vrchni_hranice))
+  return(c(lower_bound, upper_bound))
+  
 }
 
-# calculate 2-sigma interval for Nvidia 3070
-nvidia_3070 = all_data %>% filter(gpu == "nvidia_3070", outlier == FALSE)
-sigma_interval_2_3070 = calculate_sigma_interval(nvidia_3070, "performance_increase", 2)
-print(sigma_interval_2_3070)
+# 5.1. calculate Cebyshev's inequality for Nvidia 3070 and AMD 7700
+# 5.1.1. Nvidia 3070
+# Filter data for Nvidia 3070
 
-# calculate 2-sigma interval for AMD 7700
-amd_7700 = all_data %>% filter(gpu == "amd_7700", outlier == FALSE)
-sigma_interval_2_7700 = calculate_sigma_interval(amd_7700, "performance_increase", 2)
-print(sigma_interval_2_7700)
+nvidia_3070_data = all_data %>% filter(gpu == "nvidia_3070")
+# Calculate the proportion of data within 2 standard deviation
+proportion_nvidia_3070 = calculate_cebyshev(nvidia_3070_data$performance_increase, 2)
+print(proportion_nvidia_3070)
 
-
+# 5.1.2. AMD 7700
+# Filter data for AMD 7700
+amd_7700_data = all_data %>% filter(gpu == "amd_7700")
+# Calculate the proportion of data within 2 standard deviation
+proportion_amd_7700 = calculate_cebyshev(amd_7700_data$performance_increase, 2)
+print(proportion_amd_7700)
