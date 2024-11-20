@@ -67,12 +67,6 @@ all_data = rbind(nvidia_2080, nvidia_3070, amd_6800, amd_7700)
 # convert to data frame format for future mismanagement, just to be sure
 all_data = as.data.frame(all_data)
 
-# drop the id column
-all_data = all_data %>% select(-id)
-
-# delete old data frames, just for cleaner environment table
-rm(nvidia_2080, nvidia_3070, amd_6800, amd_7700, new_column_names)
-
 
 # 3. data analysis ####
 # 3.1.
@@ -150,6 +144,16 @@ print(summary_nvidia_3070)
 # calculate summary statistics amd 7700
 summary_amd_7700 = summarize_gpu("amd_7700")
 print(summary_amd_7700)
+
+# 3.4.
+# print all outliers with their id, before and after patch performance
+outliers = all_data %>% filter(outlier == TRUE)
+# print all 3070 outliers 
+outliers_3070 = outliers %>% filter(gpu == "nvidia_3070")
+print(outliers_3070)
+# print all 7700 outliers
+outliers_7700 = outliers %>% filter(gpu == "amd_7700")
+print(outliers_7700)
 
 # 4. data visualization ####
 # 4.1. create a histogram for performance increase grouped by GPU
@@ -231,9 +235,6 @@ ggarrange(histogram_plot, qqplot_plot,
 
 # save the plot
 ggsave("output/histogram_qqplot_no_outliers_task1.png", plot = combined_plot, width = 10, height = 6, units = "in", dpi = 300)
-
-# clear the environment
-rm(selected_gpus, selected_gpus_no_outliers, gpu_name_mapping, gpu_colors, boxplot_plot, histogram_plot, qqplot_plot, combined_plot)
 
 # 5. calculate sigma interval ####
 
