@@ -253,16 +253,16 @@ calculate_cebyshev = function(data, k) {
 
 # 5.1. calculate Cebyshev's inequality for Nvidia 3070 and AMD 7700
 # 5.1.1. Nvidia 3070
-# Filter data for Nvidia 3070
+# Filter data for Nvidia 3070 and with no outliers
 
-nvidia_3070_data = all_data %>% filter(gpu == "nvidia_3070")
+nvidia_3070_data = all_data %>% filter(gpu == "nvidia_3070") %>% filter(outlier == FALSE)
 # Calculate the proportion of data within 2 standard deviation
 proportion_nvidia_3070 = calculate_cebyshev(nvidia_3070_data$performance_increase, 2)
 print(proportion_nvidia_3070)
 
 # 5.1.2. AMD 7700
 # Filter data for AMD 7700
-amd_7700_data = all_data %>% filter(gpu == "amd_7700")
+amd_7700_data = all_data %>% filter(gpu == "amd_7700") %>% filter(outlier == FALSE)
 # Calculate the proportion of data within 2 standard deviation
 proportion_amd_7700 = calculate_cebyshev(amd_7700_data$performance_increase, 2)
 print(proportion_amd_7700)
