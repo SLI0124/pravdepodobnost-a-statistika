@@ -68,7 +68,7 @@ all_data = rbind(nvidia_2080, nvidia_3070, amd_6800, amd_7700)
 all_data = as.data.frame(all_data)
 
 
-
+# TASK ONE
 # 3. data analysis ####
 # 3.1.
 # add a new column preformance_increase
@@ -266,3 +266,47 @@ amd_7700_data = all_data %>% filter(gpu == "amd_7700") %>% filter(outlier == FAL
 # Calculate the proportion of data within 2 standard deviation
 proportion_amd_7700 = calculate_cebyshev(amd_7700_data$performance_increase, 2)
 print(proportion_amd_7700)
+
+
+# TASK TWO
+# 6. add boxplot without outliers for nvidia 3070 and amd 7700 ####
+# 6.1. create a boxplot for performance increase grouped by GPU without outliers
+# Filter data for Nvidia 3070 and AMD 7700 without outliers
+selected_gpus_no_outliers = all_data %>% filter(gpu %in% c("nvidia_3070", "amd_7700"), outlier == FALSE)
+
+# apply the name mapping
+selected_gpus_no_outliers = selected_gpus_no_outliers %>%
+  mutate(gpu = gpu_name_mapping[gpu])
+
+# Create the boxplot for performance increase grouped by GPU without outliers
+boxplot_plot_no_outliers = ggplot(selected_gpus_no_outliers, aes(x = gpu, y = performance_increase, fill = gpu)) +
+  stat_boxplot(geom = "errorbar", width = 0.2) +  # Add error bars
+  geom_boxplot() +                               # Create the boxplot
+  scale_fill_manual(values = gpu_colors) +       # Set custom colors
+  labs(x = "", y = "Zvýšení výkonu (FPS)") +     # Axis labels
+  theme_bw() +                                   # White background theme
+  theme(
+    legend.position = "none",                    # Remove legend
+    axis.text.x = element_text(size = 30, face = "bold"), # Make x-axis names larger
+    axis.text.y = element_text(size = 30, face = "bold"), # Make y-axis labels larger
+    axis.title.y = element_text(size = 30, face = "bold"), # Make y-axis title larger
+  )
+
+# Save the plot
+ggsave("output/boxplot_no_outliers_task2.png", plot = boxplot_plot_no_outliers, width = 10, height = 6, units = "in", dpi = 300)
+
+# 7. testing the hypothesis ####
+# 7.1. Shapiro-Wilk test
+# 7.1.1. Nvidia 3070
+
+shapiro_test_nvidia_3070 = shapiro.test(nvidia_3070_data$performance_increase)
+print(shapiro_test_nvidia_3070)
+# data:  nvidia_3070_data$performance_increase -> W = 0,98121, p-value = 0,3297
+# p-value > 0.05, therefore we do not reject the null hypothesis that the data is normally distributed
+
+# 7.1.2. AMD 7700
+shawpiro_test_amd_7700 = shapiro.test(amd_7700_data$performance_increase)
+print(shawpiro_test_amd_7700)
+# data:  amd_7700_data$performance_increase -> W = 0,97382, p-value = 0,2064
+# p-value > 0.05, therefore we do not reject the null hypothesis that the data is normally distributed
+
