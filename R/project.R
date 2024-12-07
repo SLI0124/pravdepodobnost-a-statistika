@@ -399,3 +399,15 @@ pom = ggarrange(hist,qq,
                 nrow = 1)
 
 ggsave("output/histogram_qqplot_all_gpus_task3.png", plot = pom, width = 10, height = 12, units = "in", dpi = 300)
+
+# 10. for all gpus, calculate skewness, kutosis and shapiro-wilk test ####
+# 10.1. calculate skewness and kurtosis for all GPUs
+skewness_kurtosis = all_data_no_outliers %>%
+  group_by(gpu) %>%
+  summarize(
+    skewness = skewness(performance_increase),
+    kurtosis = kurtosis(performance_increase),
+    shapiro_wilk_p_value = shapiro.test(performance_increase)$p.value
+  )
+
+print(skewness_kurtosis)
