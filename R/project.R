@@ -9,6 +9,8 @@ install.packages("ggplot2") # better visualization graphs
 install.packages("ggpubr")  # for combining multiple ggplot2 plots
 install.packages("rstatix") # identify outliers
 install.packages("forcats") # contains fct_infreq() function, which sorts factor levels by frequency
+install.packages("lawstat") # for symmetry.test() function
+install.packages("stats")   # for f.test() and many more
 
 # activate packages
 library(readxl)
@@ -19,7 +21,9 @@ library(tidyr)
 library(ggplot2)
 library(ggpubr)
 library(rstatix)
-library(forcats)  
+library(forcats)
+library(lawstat)
+library(stats)
 
 # czech formatting for numbers
 options(OutDec = ",",
@@ -299,14 +303,99 @@ ggsave("output/boxplot_no_outliers_task2.png", plot = boxplot_plot_no_outliers, 
 # 7.1. Shapiro-Wilk test
 # 7.1.1. Nvidia 3070
 
-shapiro_test_nvidia_3070 = shapiro.test(nvidia_3070_data$performance_increase)
-print(shapiro_test_nvidia_3070)
+shapiro_test_nvidia_3070_p_value = shapiro.test(nvidia_3070_data$performance_increase)$p.value
+print(shapiro_test_nvidia_3070_p_value)
 # data:  nvidia_3070_data$performance_increase -> W = 0,98121, p-value = 0,3297
 # p-value > 0.05, therefore we do not reject the null hypothesis that the data is normally distributed
 
 # 7.1.2. AMD 7700
-shawpiro_test_amd_7700 = shapiro.test(amd_7700_data$performance_increase)
-print(shawpiro_test_amd_7700)
+shapiro_test_amd_7700_p_value = shapiro.test(amd_7700_data$performance_increase)$p.value
+print(shapiro_test_amd_7700_p_value)
 # data:  amd_7700_data$performance_increase -> W = 0,97382, p-value = 0,2064
 # p-value > 0.05, therefore we do not reject the null hypothesis that the data is normally distributed
 
+# 8. compare the performance increase between Nvidia 3070 and AMD 7700 ####
+# 8.1. point estimate
+# Calculate the point estimate for the difference in performance increase between Nvidia 3070 and AMD 7700
+point_estimate = mean(amd_7700_data$performance_increase) - mean(nvidia_3070_data$performance_increase)
+print(point_estimate)
+
+# 8.2. confidence interval
+# calculate f test to compare variances of two groups
+confidence_interval = t.test(amd_7700_data$performance_increase, nvidia_3070_data$performance_increase, alternative = "greater", conf.level = 0.95, conf.int = TRUE, mu=0)
+print(confidence_interval)
+
+# TASK 3
+# 9. create a boxplot for all GPUs with outliers ####
+# create 4 rows of plots for each GPU
+# on left, plot histogram with data trend, on right plot qqplot
+# both sets of plots will have same x range
+# 9. 1. create a boxplot for all GPUs with outliers
+all_data_no_outliers = all_data %>% filter(outlier == FALSE)
+box = 
+    ggplot(all_data_no_outliers,
+           aes(x = gpu,
+               y = performance_increase)) +
+    stat_boxplot(geom = "errorbar", 
+                 width = 0.2) +
+    geom_boxplot() +
+    labs(x = "", 
+         y = "Zvýšení výkonu (FPS)",
+         title = "") +
+    theme_bw() +
+    stat_summary(geom = "point", 
+                 fun = mean, 
+                 shape = 3,
+                 size = 2, 
+                 color = "grey") +
+    theme(
+      axis.text = element_text(size = 10, 
+                               face = "bold",
+                               color = "black"),
+      
+    )
+      
+ggarrange(box,
+          nrow = 1)
+
+ggsave("output/boxplot_all_gpus_task3.png", plot = all_gpu_boxplot, width = 10, height = 6, units = "in", dpi = 300)
+
+# 9.2 create a histogram and qqplot for all GPUs without outliers
+# 9.2.1. create a histogram
+hist =
+  ggplot(all_data_no_outliers,
+         aes(x = performance_increase)) +
+  geom_histogram(binwidth = 0.25,
+                 color = "black",           # barva ohraničení
+                 fill = "lightgray") +      # barva výplně
+  labs(x = "nárůst FPS",
+       y = "hustota pravděpodobnosti")+
+  theme_bw()+
+  theme(
+    axis.text = element_text(color = "black", size = 20),   # Velikost popisků os
+    axis.title = element_text(color = "black", size = 30), # Velikost názvů os
+    strip.text = element_text(color = "black", size = 25)  # Velikost názvů facetů
+  ) +
+  facet_wrap("gpu",nrow = 4) # "facety" umožňují přípravu sad grafů stejného typu v závislosti na kategoriální proměnné
+
+# 9.2.2. create a qqplot
+qq =
+  ggplot(all_data_no_outliers, 
+         aes(sample = performance_increase))+
+  stat_qq()+
+  stat_qq_line()+
+  labs(x = "teoretické normované kvantily",
+       y = "výběrové kvantily",)+
+  theme_bw() +
+  theme(
+    axis.text = element_text(color = "black", size = 20),   # Velikost popisků os
+    axis.title = element_text(color = "black", size = 30), # Velikost názvů os
+    strip.text = element_text(color = "black", size = 25)  # Velikost názvů facetů
+  ) +
+  facet_wrap("gpu",nrow = 4)
+
+# 9.3. combine the plot
+pom = ggarrange(hist,qq,
+                nrow = 1)
+
+ggsave("output/histogram_qqplot_all_gpus_task3.png", plot = pom, width = 10, height = 12, units = "in", dpi = 300)
