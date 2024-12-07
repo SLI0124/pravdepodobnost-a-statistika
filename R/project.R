@@ -11,6 +11,7 @@ install.packages("rstatix") # identify outliers
 install.packages("forcats") # contains fct_infreq() function, which sorts factor levels by frequency
 install.packages("lawstat") # for symmetry.test() function
 install.packages("stats")   # for f.test() and many more
+install.packages("car")
 
 # activate packages
 library(readxl)
@@ -24,6 +25,7 @@ library(rstatix)
 library(forcats)
 library(lawstat)
 library(stats)
+library(car)
 
 # czech formatting for numbers
 options(OutDec = ",",
@@ -411,3 +413,49 @@ skewness_kurtosis = all_data_no_outliers %>%
   )
 
 print(skewness_kurtosis)
+
+# 11. for all GPUs, calculate the homoscedasticity ####
+# 11.1. calculate the variance for each GPU
+variance_amd_6800 = var(amd_6800_data$performance_increase)
+variance_amd_7700 = var(amd_7700_data$performance_increase)
+variance_nvidia_2080 = var(nvidia_2080_data$performance_increase)
+variance_nvidia_3070 = var(nvidia_3070_data$performance_increase)
+
+variances = c(variance_amd_6800, variance_amd_7700, variance_nvidia_2080, variance_nvidia_3070)
+
+# 11.2. calculate the ratio of variances for each pair of GPUs
+var_div_matrix = matrix(nrow = 4, ncol = 4)
+
+# set header and row names
+colnames(var_div_matrix) = c("amd_6800", "amd_7700", "nvidia_2080", "nvidia_3070")
+rownames(var_div_matrix) = c("amd_6800", "amd_7700", "nvidia_2080", "nvidia_3070")
+
+for (i in 1:4) {
+  for (j in 1:4) {
+    var_div_matrix[i, j] = variances[i] / variances[j]
+  }
+}
+
+# print the matrix of variance ratios
+print(var_div_matrix)
+print(max(var_div_matrix)) # variance_nvidia_3070 / variance_amd_7700 = 1,943488
+                           # => max ratio of variances is less than 2
+                           # so we can assume homoscedasticity and compare 
+                           # standard deviations between groups
+ 
+# calculate Bartlett's test for homoscedasticity, since we have normally distributed data
+# if we would have non-normally distributed data, we would use Levene's test
+bartlett_test = bartlett.test(performance_increase ~ gpu, data = all_data_no_outliers)
+print(bartlett_test)
+
+# 12. for all GPUs, calculate means since we have normally distributed data and greater sided 95% 
+# confidence interval ####
+# 12.1. calculate the means for each GPU
+means = all_data_no_outliers %>%
+  group_by(gpu) %>%
+  summarize(
+    mean_performance_increase = mean(performance_increase),
+    left_side_95_ci = t.test(performance_increase, mu=0, alternative = "greater", conf.level = 0.95)$conf.int[1],
+  )
+
+print(means)
