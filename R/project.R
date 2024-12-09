@@ -450,6 +450,7 @@ print(bartlett_test)
 
 # 12. for all GPUs, calculate means since we have normally distributed data and greater sided 95% 
 # confidence interval ####
+# otherwhise we would use Wilcoxon test for non-normally distributed data
 # 12.1. calculate the means for each GPU
 means = all_data_no_outliers %>%
   group_by(gpu) %>%
@@ -459,3 +460,13 @@ means = all_data_no_outliers %>%
   )
 
 print(means)
+
+# 13. pure significance test & post-hoc analysis ####
+# 13.1. perform the ANOVA test
+# since we have normally distributed data and homoscedasticity, we can use ANOVA + Tukey HSD test
+# otherwise we would use Kruskal-Wallis test + Dunn's test
+anova_test = aov(performance_increase ~ gpu, data = all_data_no_outliers)
+summary_anova = summary(anova_test)                     
+print(summary_anova)
+Tuk = TukeyHSD(anova_test)
+print(Tuk)
